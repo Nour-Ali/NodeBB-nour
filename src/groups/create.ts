@@ -1,11 +1,23 @@
-'use strict';
+//'use strict';
 
-const meta = require('../meta');
-const plugins = require('../plugins');
-const slugify = require('../slugify');
-const db = require('../database');
+// const meta = require('../meta');
+// const plugins = require('../plugins');
+// const slugify = require('../slugify');
+// const db = require('../database');
 
-module.exports = function (Groups) {
+import meta from '../meta';
+import plugins from '../plugins';
+import slugify from '../slugify';
+import db from '../database';
+
+interface DataObject {
+    name : string;
+    system : boolean | string;
+}
+
+
+
+export default function (Groups) {
     Groups.create = async function (data) {
         const isSystem = isSystemGroup(data);
         const timestamp = data.timestamp || Date.now();
@@ -65,10 +77,28 @@ module.exports = function (Groups) {
         return groupData;
     };
 
-    function isSystemGroup(data) {
-        return data.system === true || parseInt(data.system, 10) === 1 ||
-            Groups.systemGroups.includes(data.name) ||
-            Groups.isPrivilegeGroup(data.name);
+    function isSystemGroup(data: DataObject) : boolean {
+        // return data.system === true || parseInt(data.system, 10) === 1 ||
+        //     Groups.systemGroups.includes(data.name) ||
+        //     Groups.isPrivilegeGroup(data.name);
+
+        if (typeof (data.system) === 'boolean' && data.system === true) {
+            return true;
+        } else if (typeof (data.system) === 'string' && parseInt(data.system, 10) === 1){
+            return true;
+        } else if (typeof (data.system) === 'string'){
+            // The next line calls a function in a module that has not been updated to TS yet
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            const x : boolean = Groups.systemGroups.includes(data.name);
+
+            // The next line calls a function in a module that has not been updated to TS yet
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            const y : boolean = Groups.isPrivilegeGroup(data.name);
+
+            return x || y;
+        } else {
+            return false;
+        }
     }
 
     Groups.validateGroupName = function (name) {
