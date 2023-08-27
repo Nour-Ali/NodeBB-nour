@@ -29,6 +29,7 @@ interface GroupObject {
     isPrivilegeGroup(x : string) : boolean; // eslinted
     create(data: DataObject) : Promise<GroupData>; // implemented
     validateGroupName(name :string) : Error | void; // implemented
+    getGroupData(name: string) : Promise <GroupData>; //eslinted
 }
 
 interface GroupData {
@@ -51,27 +52,27 @@ export default function (Groups : GroupObject) {
     Groups.create = async function (data: DataObject) : Promise<GroupData>{
         const isSystem : boolean = isSystemGroup(data); // implemented below
         const timestamp : number = data.timestamp || Date.now();
-        let disableJoinRequests = data.disableJoinRequests === 1 ? 1 : 0;
+        let disableJoinRequests: number = data.disableJoinRequests === 1 ? 1 : 0;
         if (data.name === 'administrators') {
             disableJoinRequests = 1;
         }
-        const disableLeave = data.disableLeave === 1 ? 1 : 0;
-        const isHidden = data.hidden === 1;
+        const disableLeave: 1 | 0 = data.disableLeave === 1 ? 1 : 0;
+        const isHidden: boolean = data.hidden === 1;
 
         Groups.validateGroupName(data.name); // implemented below
 
         // The next line calls a function in a module that has not been updated to TS yet
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        const exists: boolean = await meta.userOrGroupExists(data.name); // eslint?????
+        const exists: boolean = await meta.userOrGroupExists(data.name) as boolean; 
         if (exists) {
             throw new Error('[[error:group-already-exists]]');
         }
 
-        const memberCount = data.hasOwnProperty('ownerUid') ? 1 : 0;
-        const isPrivate = data.hasOwnProperty('private') && data.private !== undefined ? data.private === 1 : true;
-        let groupData = {
+        const memberCount: 1 | 0 = data.hasOwnProperty('ownerUid') ? 1 : 0;
+        const isPrivate: boolean = data.hasOwnProperty('private') && data.private !== undefined ? data.private === 1 : true;
+        let groupData : GroupData= {
             name: data.name,
-            slug: slugify(data.name),
+            slug: slugify(data.name) as string, // eslint??
             createtime: timestamp,
             userTitle: data.userTitle || data.name,
             userTitleEnabled: data.userTitleEnabled === 1 ? 1 : 0,
@@ -84,17 +85,31 @@ export default function (Groups : GroupObject) {
             disableLeave: disableLeave,
         };
 
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         await plugins.hooks.fire('filter:group.create', { group: groupData, data: data });
 
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         await db.sortedSetAdd('groups:createtime', groupData.createtime, groupData.name);
+        
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         await db.setObject(`group:${groupData.name}`, groupData);
 
         if (data.hasOwnProperty('ownerUid')) {
+            // The next line calls a function in a module that has not been updated to TS yet
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
             await db.setAdd(`group:${groupData.name}:owners`, data.ownerUid);
+            
+            // The next line calls a function in a module that has not been updated to TS yet
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
             await db.sortedSetAdd(`group:${groupData.name}:members`, timestamp, data.ownerUid);
         }
 
         if (!isHidden && !isSystem) {
+            // The next line calls a function in a module that has not been updated to TS yet
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
             await db.sortedSetAddBulk([
                 ['groups:visible:createtime', timestamp, groupData.name],
                 ['groups:visible:memberCount', groupData.memberCount, groupData.name],
@@ -102,11 +117,18 @@ export default function (Groups : GroupObject) {
             ]);
         }
 
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         await db.setObjectField('groupslug:groupname', groupData.slug, groupData.name);
 
-        groupData = await Groups.getGroupData(groupData.name);
-        plugins.hooks.fire('action:group.create', { group: groupData });
-        return groupData;
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        const newgroupData: GroupData = await Groups.getGroupData(groupData.name);
+        
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        plugins.hooks.fire('action:group.create', { group: newgroupData });
+        return newgroupData;
     };
 
     function isSystemGroup(data: DataObject) : boolean {
