@@ -86,7 +86,8 @@ export default function (Groups : GroupObject) {
         if (name === 'guests' || (!Groups.isPrivilegeGroup(name) && name.includes(':'))) {
             throw new Error('[[error:invalid-group-name]]');
         }
-
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         if (name.includes('/') || !slugify(name)) {
             throw new Error('[[error:invalid-group-name]]');
         }
@@ -115,6 +116,8 @@ export default function (Groups : GroupObject) {
         const isPrivate: boolean = data.hasOwnProperty('private') && data.private !== undefined ? data.private === 1 : true;
         const groupData : GroupData = {
             name: data.name,
+            // The next line calls a function in a module that has not been updated to TS yet
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
             slug: slugify(data.name) as string, // eslint??
             createtime: timestamp,
             userTitle: data.userTitle || data.name,
