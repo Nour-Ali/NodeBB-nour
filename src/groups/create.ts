@@ -41,7 +41,7 @@ interface GroupData {
 }
 
 
-export default function (Groups : GroupObject) {
+module.exports = function (Groups : GroupObject) {
     function isSystemGroup(data: DataObject) : boolean {
         // return data.system === true || parseInt(data.system, 10) === 1 ||
         //     Groups.systemGroups.includes(data.name) ||
