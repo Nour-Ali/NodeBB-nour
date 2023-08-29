@@ -1,10 +1,3 @@
-//'use strict';
-
-// const meta = require('../meta');
-// const plugins = require('../plugins');
-// const slugify = require('../slugify');
-// const db = require('../database');
-
 import meta from '../meta';
 import plugins from '../plugins';
 import slugify from '../slugify';
@@ -29,7 +22,7 @@ interface GroupObject {
     isPrivilegeGroup(x : string) : boolean; // eslinted
     create(data: DataObject) : Promise<GroupData>; // implemented
     validateGroupName(name :string) : Error | void; // implemented
-    getGroupData(name: string) : Promise <GroupData>; //eslinted
+    getGroupData(name: string) : Promise <GroupData>; // eslinted
 }
 
 interface GroupData {
@@ -49,7 +42,57 @@ interface GroupData {
 
 
 export default function (Groups : GroupObject) {
-    Groups.create = async function (data: DataObject) : Promise<GroupData>{
+    function isSystemGroup(data: DataObject) : boolean {
+        // return data.system === true || parseInt(data.system, 10) === 1 ||
+        //     Groups.systemGroups.includes(data.name) ||
+        //     Groups.isPrivilegeGroup(data.name);
+
+        if (typeof (data.system) === 'boolean' && data.system === true) {
+            return true;
+        } else if (typeof (data.system) === 'string' && parseInt(data.system, 10) === 1) {
+            return true;
+        } else if (typeof (data.system) === 'string') {
+            // The next line calls a function in a module that has not been updated to TS yet
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            const x : boolean = Groups.systemGroups.includes(data.name);
+
+            // The next line calls a function in a module that has not been updated to TS yet
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+            const y : boolean = Groups.isPrivilegeGroup(data.name);
+
+            return x || y;
+        }
+
+        return false;
+    }
+
+    Groups.validateGroupName = function (name: string): Error | void {
+        if (!name) {
+            throw new Error('[[error:group-name-too-short]]');
+        }
+
+        if (typeof name !== 'string') {
+            throw new Error('[[error:invalid-group-name]]');
+        }
+
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        if (!Groups.isPrivilegeGroup(name) && name.length > meta.config.maximumGroupNameLength) { // eslint
+            throw new Error('[[error:group-name-too-long]]');
+        }
+
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        if (name === 'guests' || (!Groups.isPrivilegeGroup(name) && name.includes(':'))) {
+            throw new Error('[[error:invalid-group-name]]');
+        }
+
+        if (name.includes('/') || !slugify(name)) {
+            throw new Error('[[error:invalid-group-name]]');
+        }
+    };
+
+    Groups.create = async function (data: DataObject) : Promise<GroupData> {
         const isSystem : boolean = isSystemGroup(data); // implemented below
         const timestamp : number = data.timestamp || Date.now();
         let disableJoinRequests: number = data.disableJoinRequests === 1 ? 1 : 0;
@@ -63,14 +106,14 @@ export default function (Groups : GroupObject) {
 
         // The next line calls a function in a module that has not been updated to TS yet
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        const exists: boolean = await meta.userOrGroupExists(data.name) as boolean; 
+        const exists: boolean = await meta.userOrGroupExists(data.name) as boolean;
         if (exists) {
             throw new Error('[[error:group-already-exists]]');
         }
 
         const memberCount: 1 | 0 = data.hasOwnProperty('ownerUid') ? 1 : 0;
         const isPrivate: boolean = data.hasOwnProperty('private') && data.private !== undefined ? data.private === 1 : true;
-        let groupData : GroupData= {
+        const groupData : GroupData = {
             name: data.name,
             slug: slugify(data.name) as string, // eslint??
             createtime: timestamp,
@@ -92,7 +135,7 @@ export default function (Groups : GroupObject) {
         // The next line calls a function in a module that has not been updated to TS yet
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         await db.sortedSetAdd('groups:createtime', groupData.createtime, groupData.name);
-        
+
         // The next line calls a function in a module that has not been updated to TS yet
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         await db.setObject(`group:${groupData.name}`, groupData);
@@ -101,7 +144,6 @@ export default function (Groups : GroupObject) {
             // The next line calls a function in a module that has not been updated to TS yet
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
             await db.setAdd(`group:${groupData.name}:owners`, data.ownerUid);
-            
             // The next line calls a function in a module that has not been updated to TS yet
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
             await db.sortedSetAdd(`group:${groupData.name}:members`, timestamp, data.ownerUid);
@@ -124,60 +166,9 @@ export default function (Groups : GroupObject) {
         // The next line calls a function in a module that has not been updated to TS yet
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         const newgroupData: GroupData = await Groups.getGroupData(groupData.name);
-        
         // The next line calls a function in a module that has not been updated to TS yet
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        plugins.hooks.fire('action:group.create', { group: newgroupData });
+        await plugins.hooks.fire('action:group.create', { group: newgroupData });
         return newgroupData;
     };
-
-    function isSystemGroup(data: DataObject) : boolean {
-        // return data.system === true || parseInt(data.system, 10) === 1 ||
-        //     Groups.systemGroups.includes(data.name) ||
-        //     Groups.isPrivilegeGroup(data.name);
-
-        if (typeof (data.system) === 'boolean' && data.system === true) {
-            return true;
-        } else if (typeof (data.system) === 'string' && parseInt(data.system, 10) === 1){
-            return true;
-        } else if (typeof (data.system) === 'string'){
-            // The next line calls a function in a module that has not been updated to TS yet
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-            const x : boolean = Groups.systemGroups.includes(data.name);
-
-            // The next line calls a function in a module that has not been updated to TS yet
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-            const y : boolean = Groups.isPrivilegeGroup(data.name);
-
-            return x || y;
-        } else {
-            return false;
-        }
-    }
-
-    Groups.validateGroupName = function (name: string): Error | void {
-        if (!name) {
-            throw new Error('[[error:group-name-too-short]]');
-        }
-
-        if (typeof name !== 'string') {
-            throw new Error('[[error:invalid-group-name]]');
-        }
-
-        // The next line calls a function in a module that has not been updated to TS yet
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        if (!Groups.isPrivilegeGroup(name) && name.length > meta.config.maximumGroupNameLength) { //eslint
-            throw new Error('[[error:group-name-too-long]]');
-        }
-
-        // The next line calls a function in a module that has not been updated to TS yet
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        if (name === 'guests' || (!Groups.isPrivilegeGroup(name) && name.includes(':'))) {
-            throw new Error('[[error:invalid-group-name]]');
-        }
-
-        if (name.includes('/') || !slugify(name)) {
-            throw new Error('[[error:invalid-group-name]]');
-        }
-    };
-};
+}
