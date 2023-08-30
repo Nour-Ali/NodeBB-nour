@@ -5,16 +5,17 @@ import db from '../database';
 
 interface DataObject {
     name : string;
-    system : boolean | string;
     timestamp : number;
-    disableJoinRequests: number; // or boolean?
-    disableLeave: number;
-    hidden: number;
-    private: number;
+    disableJoinRequests : string;
+    disableLeave : string;
+    hidden : string;
+    private : number;
     userTitle: number;
-    userTitleEnabled: number;
+    userTitleEscaped: number;
+    userTitleEnabled: string;
     description: string;
-    ownerUid: number;
+    ownerUid : number;
+    system : string | boolean;
 }
 
 interface GroupObject {
@@ -22,26 +23,26 @@ interface GroupObject {
     isPrivilegeGroup(x : string) : boolean; // eslinted
     create(data: DataObject) : Promise<GroupData>; // implemented
     validateGroupName(name :string) : Error | void; // implemented
-    getGroupData(name: string) : Promise <GroupData>; // eslinted
+    getGroupData(groupName: string) : Promise <GroupData>; // eslinted
 }
 
 interface GroupData {
-    name: string,
-    slug: string,
-    createtime: number,
-    userTitle: string | number,
-    userTitleEnabled: number,
-    description: string,
-    memberCount: number,
-    hidden: number,
-    system: number,
-    private: number,
-    disableJoinRequests: number,
-    disableLeave: number,
+    name?: string;
+    slug?: string;
+    createtime?: number;
+    userTitle?: string | number;
+    userTitleEnabled?: number;
+    description?: string;
+    memberCount?: number;
+    hidden?: number;
+    system?: number;
+    private?: number;
+    disableJoinRequests?: number;
+    disableLeave?: number;
 }
 
 
-module.exports = function (Groups : GroupObject) {
+export = function (Groups : GroupObject) {
     function isSystemGroup(data: DataObject) : boolean {
         // return data.system === true || parseInt(data.system, 10) === 1 ||
         //     Groups.systemGroups.includes(data.name) ||
@@ -51,19 +52,16 @@ module.exports = function (Groups : GroupObject) {
             return true;
         } else if (typeof (data.system) === 'string' && parseInt(data.system, 10) === 1) {
             return true;
-        } else if (typeof (data.system) === 'string') {
-            // The next line calls a function in a module that has not been updated to TS yet
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-            const x : boolean = Groups.systemGroups.includes(data.name);
-
-            // The next line calls a function in a module that has not been updated to TS yet
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-            const y : boolean = Groups.isPrivilegeGroup(data.name);
-
-            return x || y;
         }
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        const x : boolean = Groups.systemGroups.includes(data.name);
 
-        return false;
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        const y : boolean = Groups.isPrivilegeGroup(data.name);
+
+        return x || y;
     }
 
     Groups.validateGroupName = function (name: string): Error | void {
@@ -92,16 +90,15 @@ module.exports = function (Groups : GroupObject) {
             throw new Error('[[error:invalid-group-name]]');
         }
     };
-
     Groups.create = async function (data: DataObject) : Promise<GroupData> {
-        const isSystem : boolean = isSystemGroup(data); // implemented below
-        const timestamp : number = data.timestamp || Date.now();
-        let disableJoinRequests: number = data.disableJoinRequests === 1 ? 1 : 0;
+        const isSystem = isSystemGroup(data); // implemented below
+        const timestamp = data.timestamp || Date.now();
+        let disableJoinRequests = parseInt(data.disableJoinRequests, 10) === 1 ? 1 : 0;
         if (data.name === 'administrators') {
             disableJoinRequests = 1;
         }
-        const disableLeave: 1 | 0 = data.disableLeave === 1 ? 1 : 0;
-        const isHidden: boolean = data.hidden === 1;
+        const disableLeave = parseInt(data.disableLeave, 10) === 1 ? 1 : 0;
+        const isHidden = parseInt(data.hidden, 10) === 1;
 
         Groups.validateGroupName(data.name); // implemented below
 
@@ -112,8 +109,8 @@ module.exports = function (Groups : GroupObject) {
             throw new Error('[[error:group-already-exists]]');
         }
 
-        const memberCount: 1 | 0 = data.hasOwnProperty('ownerUid') ? 1 : 0;
-        const isPrivate: boolean = data.hasOwnProperty('private') && data.private !== undefined ? data.private === 1 : true;
+        const memberCount = data.hasOwnProperty('ownerUid') ? 1 : 0;
+        const isPrivate = data.hasOwnProperty('private') && data.private !== undefined ? data.private === 1 : true;
         const groupData : GroupData = {
             name: data.name,
             // The next line calls a function in a module that has not been updated to TS yet
@@ -121,7 +118,7 @@ module.exports = function (Groups : GroupObject) {
             slug: slugify(data.name) as string, // eslint??
             createtime: timestamp,
             userTitle: data.userTitle || data.name,
-            userTitleEnabled: data.userTitleEnabled === 1 ? 1 : 0,
+            userTitleEnabled: parseInt(data.userTitleEnabled, 10) === 1 ? 1 : 0,
             description: data.description || '',
             memberCount: memberCount,
             hidden: isHidden ? 1 : 0,
